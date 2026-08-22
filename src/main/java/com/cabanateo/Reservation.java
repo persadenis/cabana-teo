@@ -1,8 +1,14 @@
 package com.cabanateo;
 
 import java.time.LocalDateTime;
+import jakarta.persistence.*;
 
+import javax.annotation.processing.Generated;
+
+@Entity
 public class Reservation {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
     private String guestName;
     private String email;
@@ -12,10 +18,8 @@ public class Reservation {
     private int numberOfGuests;
     private String notes;
     private ReservationStatus status;
-    private static int nextId = 1;
 
     public Reservation() {
-        this.id = nextId++;
         this.status = ReservationStatus.PENDING;
     }
 
@@ -42,7 +46,6 @@ public class Reservation {
         this.checkOut= checkOut;
         this.notes=notes;
         this.status=ReservationStatus.PENDING;
-        this.id= nextId++;
     }
 
     public int getId()
