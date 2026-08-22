@@ -19,18 +19,23 @@ public class ReservationService {
             throw new IllegalArgumentException("The reservation can't be null");
         }
 
+        LocalDateTime bufferedCheckIn =
+                reservation.getCheckIn().minusHours(3);
+
+        LocalDateTime bufferedCheckOut =
+                reservation.getCheckOut().plusHours(3);
+
         boolean overlaps =
                 repository.existsByCheckInBeforeAndCheckOutAfter(
-                        reservation.getCheckOut(),
-                        reservation.getCheckIn()
+                        bufferedCheckOut,
+                        bufferedCheckIn
                 );
 
         if (overlaps) {
             throw new IllegalStateException(
-                    "The selected period is already booked"
+                    "There must be at least 3 hours between reservations"
             );
         }
-
 
         return repository.save(reservation);
     }
@@ -72,6 +77,25 @@ public class ReservationService {
 
         Reservation reservation = findReservationById(id);
 
+        LocalDateTime bufferedCheckIn =
+                request.getCheckIn().minusHours(3);
+
+        LocalDateTime bufferedCheckOut =
+                request.getCheckOut().plusHours(3);
+
+        boolean overlaps =
+                repository.existsByCheckInBeforeAndCheckOutAfterAndIdNot(
+                        bufferedCheckOut,
+                        bufferedCheckIn,
+                        id
+                );
+
+        if (overlaps) {
+            throw new IllegalStateException(
+                    "There must be at least 3 hours between reservations"
+            );
+        }
+
         reservation.setGuestName(request.getGuestName());
         reservation.setEmail(request.getEmail());
         reservation.setPhone(request.getPhone());
@@ -79,20 +103,6 @@ public class ReservationService {
         reservation.setCheckOut(request.getCheckOut());
         reservation.setNumberOfGuests(request.getNumberOfGuests());
         reservation.setNotes(request.getNotes());
-
-        boolean overlaps =
-                repository.existsByCheckInBeforeAndCheckOutAfterAndIdNot(
-                        reservation.getCheckOut(),
-                        reservation.getCheckIn(),
-                        id
-                );
-
-        if(overlaps)
-        {
-            throw new IllegalStateException(
-                    "The selected period is already booked"
-            );
-        }
 
         return repository.save(reservation);
     }
