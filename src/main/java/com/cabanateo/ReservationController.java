@@ -3,6 +3,7 @@ package com.cabanateo;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,65 +23,45 @@ public class ReservationController {
 
     @GetMapping("/api/reservations/{id}")
     public Reservation getReservationById(@PathVariable int id) {
-        try {
-            return service.findReservationById(id);
-        } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    e.getMessage()
-            );
-        }
+        return service.findReservationById(id);
     }
 
     @PostMapping("/api/reservations")
     public ResponseEntity<Reservation> createReservation(
-            @RequestBody Reservation reservation) {
+            @RequestBody @Valid CreateReservationRequest request) {
 
-        service.addReservation(reservation);
+        Reservation reservation = new Reservation(
+                request.getGuestName(),
+                request.getEmail(),
+                request.getPhone(),
+                request.getCheckIn(),
+                request.getCheckOut(),
+                request.getNumberOfGuests(),
+                request.getNotes()
+        );
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(reservation);
+        Reservation savedReservation = service.addReservation(reservation);
+
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(savedReservation);
     }
 
     @DeleteMapping("/api/reservations/{id}")
     public ResponseEntity<Void> deleteReservation(@PathVariable int id) {
-        try {
-            service.deleteReservation(id);
-            return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    e.getMessage()
-            );
-        }
+        service.deleteReservation(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/api/reservations/{id}")
     public ResponseEntity<Reservation> updateReservation(
             @PathVariable int id,
-            @RequestBody Reservation updatedReservation) {
+            @RequestBody @Valid CreateReservationRequest request) {
 
-        try {
-            Reservation existingReservation = service.findReservationById(id);
+        Reservation updatedReservation =
+                service.updateReservation(id, request);
 
-            existingReservation.setGuestName(updatedReservation.getGuestName());
-            existingReservation.setEmail(updatedReservation.getEmail());
-            existingReservation.setPhone(updatedReservation.getPhone());
-            existingReservation.setCheckIn(updatedReservation.getCheckIn());
-            existingReservation.setCheckOut(updatedReservation.getCheckOut());
-            existingReservation.setNumberOfGuests(updatedReservation.getNumberOfGuests());
-            existingReservation.setNotes(updatedReservation.getNotes());
-
-            return ResponseEntity.ok(existingReservation);
-
-        } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(
-                    HttpStatus.NOT_FOUND,
-                    e.getMessage()
-            );
-        }
+        return ResponseEntity.ok(updatedReservation);
     }
-
 
 }
