@@ -1,14 +1,17 @@
 package com.cabanateo;
 
+import org.springframework.stereotype.Service;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ReservationManager {
+@Service
+public class ReservationService {
     private List<Reservation> reservations;
 
-    ReservationManager() {
-        reservations = new ArrayList<Reservation>();
+    public ReservationService() {
+        reservations = new ArrayList<>();
     }
 
     public void addReservation(Reservation reservation) {

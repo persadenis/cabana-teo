@@ -10,31 +10,20 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 public class ReservationController {
-    private final ReservationManager manager;
-    public ReservationController() {
-        this.manager = new ReservationManager();
-
-        manager.addReservation(
-                new Reservation(
-                        "Andrei",
-                        "andrei@email.com",
-                        "0712345678",
-                        LocalDateTime.of(2026, 8, 20, 15, 0),
-                        LocalDateTime.of(2026, 8, 22, 12, 0),
-                        4,
-                        "Test reservation"
-                )
-        );
+    private final ReservationService service;
+    public ReservationController(ReservationService service) {
+        this.service = service;
     }
+
     @GetMapping("/api/reservations")
     public List<Reservation> getAllReservations() {
-        return manager.getAllReservations();
+        return service.getAllReservations();
     }
 
     @GetMapping("/api/reservations/{id}")
     public Reservation getReservationById(@PathVariable int id) {
         try {
-            return manager.findReservationById(id);
+            return service.findReservationById(id);
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
@@ -47,7 +36,7 @@ public class ReservationController {
     public ResponseEntity<Reservation> createReservation(
             @RequestBody Reservation reservation) {
 
-        manager.addReservation(reservation);
+        service.addReservation(reservation);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -57,7 +46,7 @@ public class ReservationController {
     @DeleteMapping("/api/reservations/{id}")
     public ResponseEntity<Void> deleteReservation(@PathVariable int id) {
         try {
-            manager.deleteReservation(id);
+            service.deleteReservation(id);
             return ResponseEntity.noContent().build();
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(
@@ -73,7 +62,7 @@ public class ReservationController {
             @RequestBody Reservation updatedReservation) {
 
         try {
-            Reservation existingReservation = manager.findReservationById(id);
+            Reservation existingReservation = service.findReservationById(id);
 
             existingReservation.setGuestName(updatedReservation.getGuestName());
             existingReservation.setEmail(updatedReservation.getEmail());
