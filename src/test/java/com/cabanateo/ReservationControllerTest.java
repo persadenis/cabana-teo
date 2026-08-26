@@ -9,7 +9,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import org.springframework.test.web.servlet.MvcResult;
+import tools.jackson.databind.ObjectMapper;
+
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -22,6 +26,9 @@ public class ReservationControllerTest {
 
     @Autowired
     private ReservationRepository repository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
@@ -90,6 +97,33 @@ public class ReservationControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldReturnAllReservations() throws Exception {
+
+        String json = """
+        {
+          "guestName": "Test Guest",
+          "email": "guest@email.com",
+          "phone": "0712345678",
+          "checkIn": "2027-03-10T15:00:00",
+          "checkOut": "2027-03-12T12:00:00",
+          "numberOfGuests": 4,
+          "notes": "Testing GET"
+        }
+        """;
+
+        mockMvc.perform(post("/api/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/reservations"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].guestName").value("Test Guest"))
+                .andExpect(jsonPath("$[0].email").value("guest@email.com"))
+                .andExpect(jsonPath("$[0].numberOfGuests").value(4));
     }
 
     @Test
@@ -168,4 +202,152 @@ public class ReservationControllerTest {
                 .andExpect(status().isConflict());
     }
 
+    @Test
+    void shouldReturnReservationById() throws Exception {
+
+        String json = """
+                {
+                  "guestName": "First Guest",
+                  "email": "first@email.com",
+                  "phone": "0711111111",
+                  "checkIn": "2027-01-10T15:00:00",
+                  "checkOut": "2027-01-12T12:00:00",
+                  "numberOfGuests": 4,
+                  "notes": ""
+                }
+                """;
+        MvcResult result = mockMvc.perform(post("/api/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                        .andExpect(status().isCreated())
+                        .andReturn();
+
+        String responseBody = result.getResponse().getContentAsString();
+
+        Reservation createdReservation = objectMapper.readValue(responseBody, Reservation.class);
+
+        int id = createdReservation.getId();
+
+        mockMvc.perform(get("/api/reservations/" + id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.guestName").value("First Guest"))
+                .andExpect(jsonPath("$.email").value("first@email.com"))
+                .andExpect(jsonPath("$.id").value(id));
+
+    }
+
+    @Test
+    void shouldReturnNotFoundForNonExistentId() throws Exception {
+        mockMvc.perform(get("/api/reservations/9999"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldDeleteReservation() throws Exception {
+        String json = """
+                {
+                  "guestName": "First Guest",
+                  "email": "first@email.com",
+                  "phone": "0711111111",
+                  "checkIn": "2027-01-10T15:00:00",
+                  "checkOut": "2027-01-12T12:00:00",
+                  "numberOfGuests": 4,
+                  "notes": ""
+                }
+                """;
+
+        MvcResult result = mockMvc.perform(post("/api/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String responseBody = result.getResponse().getContentAsString();
+        Reservation createdReservation = objectMapper.readValue(responseBody, Reservation.class);
+        int id = createdReservation.getId();
+        mockMvc.perform(delete("/api/reservations/" + id))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/reservations/" + id))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldNotDeleteNonExistentReservation() throws Exception {
+        mockMvc.perform(delete("/api/reservations/9999"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldUpdateReservation() throws Exception {
+        String json = """
+                {
+                  "guestName": "First Guest",
+                  "email": "first@email.com",
+                  "phone": "0711111111",
+                  "checkIn": "2027-01-10T15:00:00",
+                  "checkOut": "2027-01-12T12:00:00",
+                  "numberOfGuests": 4,
+                  "notes": ""
+                }
+                """;
+        MvcResult result = mockMvc.perform(post("/api/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String responseBody = result.getResponse().getContentAsString();
+        Reservation createdReservation = objectMapper.readValue(responseBody, Reservation.class);
+        int id = createdReservation.getId();
+
+        String updateJson = """
+                {
+                  "guestName": "Updated Guest",
+                  "email": "updated@email.com",
+                  "phone": "0799999999",
+                  "checkIn": "2027-03-10T15:00:00",
+                  "checkOut": "2027-03-12T12:00:00",
+                  "numberOfGuests": 6,
+                  "notes": "Updated reservation"
+                }
+                """;
+
+        mockMvc.perform(put("/api/reservations/" + id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateJson))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/reservations/" + id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.guestName").value("Updated Guest"))
+                .andExpect(jsonPath("$.email").value("updated@email.com"))
+                .andExpect(jsonPath("$.phone").value("0799999999"))
+                .andExpect(jsonPath("$.checkIn").value("2027-03-10T15:00:00"))
+                .andExpect(jsonPath("$.checkOut").value("2027-03-12T12:00:00"))
+                .andExpect(jsonPath("$.numberOfGuests").value(6))
+                .andExpect(jsonPath("$.notes").value("Updated reservation"));
+    }
+
+    @Test
+    void shouldNotUpdateReservationWithNonExistentId() throws Exception {
+
+        String updateJson = """
+            {
+              "guestName": "Updated Guest",
+              "email": "updated@email.com",
+              "phone": "0799999999",
+              "checkIn": "2027-03-10T15:00:00",
+              "checkOut": "2027-03-12T12:00:00",
+              "numberOfGuests": 6,
+              "notes": "Updated reservation"
+            }
+            """;
+
+        mockMvc.perform(put("/api/reservations/9999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateJson))
+                .andExpect(status().isNotFound());
+    }
 }

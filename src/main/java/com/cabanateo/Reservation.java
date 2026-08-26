@@ -95,7 +95,7 @@ public class Reservation {
     public void setGuestName(String guestName) {this.guestName = guestName;}
     public void setEmail(String email) {this.email = email;}
     public void setPhone(String phone) {this.phone = phone;}
-
+    public void setId(int id) {this.id = id;}
 
     @Override
     public String toString()
