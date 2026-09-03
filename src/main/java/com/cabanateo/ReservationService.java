@@ -55,11 +55,42 @@ public class ReservationService {
 
     public void updateStatus(int id, ReservationStatus newStatus) {
         Reservation reservation = findReservationById(id);
+
+        if(reservation.getStatus() == ReservationStatus.CANCELLED) {
+            throw new IllegalStateException(
+                    "You can't change the status of a cancelled reservation"
+            );
+        }
+
+        if(newStatus == ReservationStatus.CONFIRMED)
+        {
+            boolean overlaps =
+                    repository.existsByCheckInBeforeAndCheckOutAfterAndIdNotAndStatus(
+                            reservation.getCheckOut().plusHours(3),
+                            reservation.getCheckIn().minusHours(3),
+                            id,
+                            ReservationStatus.CONFIRMED
+                    );
+            if(overlaps)
+            {
+                throw new IllegalStateException(
+                        "There must be at least 3 hours between confirmed reservations"
+                );
+            }
+        }
+
         reservation.setStatus(newStatus);
         repository.save(reservation);
     }
 
     public void updateDates(int id, LocalDateTime checkIn, LocalDateTime checkOut) {
+
+        if (!checkOut.isAfter(checkIn) || checkIn == null || checkOut == null) {
+            throw new IllegalArgumentException(
+                    "The checkOut should be after the checkIn and should not be null"
+            );
+        }
+
         Reservation reservation = findReservationById(id);
         reservation.setCheckIn(checkIn);
         reservation.setCheckOut(checkOut);
@@ -75,6 +106,12 @@ public class ReservationService {
             int id,
             CreateReservationRequest request) {
 
+        if (!request.getCheckOut().isAfter(request.getCheckIn())) {
+            throw new IllegalArgumentException(
+                    "The checkOut should be after the checkIn"
+            );
+        }
+
         Reservation reservation = findReservationById(id);
 
         LocalDateTime bufferedCheckIn =
@@ -82,6 +119,8 @@ public class ReservationService {
 
         LocalDateTime bufferedCheckOut =
                 request.getCheckOut().plusHours(3);
+
+
 
         boolean overlaps =
                 repository.existsByCheckInBeforeAndCheckOutAfterAndIdNot(

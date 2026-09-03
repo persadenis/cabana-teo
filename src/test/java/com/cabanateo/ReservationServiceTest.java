@@ -45,6 +45,27 @@ public class ReservationServiceTest {
     }
 
     @Test
+    void shouldThrowWhenCheckOutIsBeforeCheckIn() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> new Reservation(
+                        "Test Guest",
+                        "test@email.com",
+                        "0712345678",
+                        LocalDateTime.of(2027, 5, 10, 15, 0),
+                        LocalDateTime.of(2027, 5, 10, 12, 0),
+                        4,
+                        "Test"
+                )
+        );
+
+        assertEquals(
+                "The checkOut should be after the checkIn and should not be null",
+                exception.getMessage()
+        );
+    }
+
+    @Test
     void shouldThrowWhenReservationDoesNotExist() {
 
         when(repository.findById(9999))
@@ -61,7 +82,7 @@ public class ReservationServiceTest {
     @Test
     void shouldSaveReservationWhenThereIsNoOverlap() {
 
-        Reservation reservation =new Reservation(
+        Reservation reservation = new Reservation(
                 "Test Guest",
                 "test@email.com",
                 "0712345678",
@@ -69,7 +90,7 @@ public class ReservationServiceTest {
                 LocalDateTime.of(2027, 5, 12, 12, 0),
                 4,
                 "Test"
-        );;
+        );
 
         when(repository.existsByCheckInBeforeAndCheckOutAfter(
                 any(),
@@ -89,7 +110,7 @@ public class ReservationServiceTest {
     @Test
     void shouldNotSaveReservationWhenThereIsOverlap() {
 
-        Reservation reservation =new Reservation(
+        Reservation reservation = new Reservation(
                 "Test Guest",
                 "test@email.com",
                 "0712345678",
@@ -97,7 +118,8 @@ public class ReservationServiceTest {
                 LocalDateTime.of(2027, 5, 12, 12, 0),
                 4,
                 "Test"
-        );;
+        );
+        ;
 
         when(repository.existsByCheckInBeforeAndCheckOutAfter(
                 any(),
@@ -174,5 +196,125 @@ public class ReservationServiceTest {
         );
 
         verify(repository).save(reservation);
+    }
+
+    @Test
+    void shouldThrowWhenUpdatingCheckInAndCheckOutInvalid() {
+        Reservation reservation = new Reservation(
+                "Old Guest",
+                "old@email.com",
+                "0711111111",
+                LocalDateTime.of(2027, 5, 10, 15, 0),
+                LocalDateTime.of(2027, 5, 12, 12, 0),
+                4,
+                "Old notes"
+        );
+
+        reservation.setId(5);
+
+        when(repository.findById(5))
+                .thenReturn(Optional.of(reservation));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.updateDates(
+                        5,
+                        LocalDateTime.of(2027, 5, 12, 15, 0),
+                        LocalDateTime.of(2027, 5, 10, 12, 0)
+                )
+        );
+
+        assertEquals("The checkOut should be after the checkIn and should not be null", exception.getMessage());
+
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void shouldThrowWhenConfirmingReservationThatOverlapsAnotherConfirmedReservation() {
+        Reservation reservation = new Reservation(
+                "Old Guest",
+                "old@email.com",
+                "0711111111",
+                LocalDateTime.of(2027, 5, 8, 15, 0),
+                LocalDateTime.of(2027, 5, 10, 12, 0),
+                4,
+                "Old notes"
+        );
+
+        reservation.setId(5);
+
+        when(repository.findById(5))
+                .thenReturn(Optional.of(reservation));
+
+        when(repository.existsByCheckInBeforeAndCheckOutAfterAndIdNotAndStatus(
+                any(),
+                any(),
+                eq(5),
+                eq(ReservationStatus.CONFIRMED)
+        )).thenReturn(true);
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> service.updateStatus(
+                        5,
+                        ReservationStatus.CONFIRMED)
+        );
+
+        assertEquals("There must be at least 3 hours between confirmed reservations", exception.getMessage());
+
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void shouldCancelReservation() {
+        Reservation reservation = new Reservation(
+                "Old Guest",
+                "old@email.com",
+                "0711111111",
+                LocalDateTime.of(2027, 5, 8, 15, 0),
+                LocalDateTime.of(2027, 5, 10, 12, 0),
+                4,
+                "Old notes"
+        );
+
+        reservation.setId(5);
+
+        when(repository.findById(5))
+                .thenReturn(Optional.of(reservation));
+
+        service.updateStatus(5, ReservationStatus.CANCELLED);
+
+        assertEquals(ReservationStatus.CANCELLED, reservation.getStatus());
+
+        verify(repository).save(reservation);
+
+    }
+
+    @Test
+    void shouldThrowWhenUpdatingStatusOfCancelledReservation() {
+        Reservation reservation = new Reservation(
+                "Old Guest",
+                "old@email.com",
+                "0711111111",
+                LocalDateTime.of(2027, 5, 8, 15, 0),
+                LocalDateTime.of(2027, 5, 10, 12, 0),
+                4,
+                "Old notes"
+        );
+
+        reservation.setId(5);
+        reservation.setStatus(ReservationStatus.CANCELLED);
+
+        when(repository.findById(5))
+                .thenReturn(Optional.of(reservation));
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> service.updateStatus(5, ReservationStatus.CONFIRMED)
+        );
+
+        assertEquals("You can't change the status of a cancelled reservation", exception.getMessage());
+
+        verify(repository, never()).save(any());
     }
 }

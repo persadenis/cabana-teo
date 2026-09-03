@@ -16,4 +16,10 @@ public interface ReservationRepository
                 LocalDateTime checkIn,
                 int id
         );
+        boolean existsByCheckInBeforeAndCheckOutAfterAndIdNotAndStatus(
+                LocalDateTime checkOut,
+                LocalDateTime checkIn,
+                int id,
+                ReservationStatus status
+        );
 }
